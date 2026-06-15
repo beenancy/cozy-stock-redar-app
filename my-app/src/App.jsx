@@ -1,212 +1,293 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Search, 
-  SlidersHorizontal, 
-  Leaf, 
-  TrendingUp, 
-  BarChart2, 
-  ChevronRight, 
-  Home, 
-  Bookmark, 
-  User,
-  Activity,
-  Box,
-  Sparkles
+  Search, SlidersHorizontal, ChevronRight, Home, User, 
+  Activity, Heart, Copy, HelpCircle, FileText, MessageSquare,
+  Loader2, RefreshCw, Wallet, PieChart, Settings, LogOut, Trash2
 } from 'lucide-react';
+import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip, XAxis } from 'recharts';
 
-export default function StockRedarBrightMinimal() {
-  const [activeTab, setActiveTab] = useState('1D');
-  const [momentumScore, setMomentumScore] = useState(40);
+// ข้อมูลจำลองกราฟ
+const chartData = [
+  { time: '14 พ.ค.', price: 185.20 }, { time: '15 พ.ค.', price: 186.80 }, 
+  { time: '16 พ.ค.', price: 186.00 }, { time: '17 พ.ค.', price: 188.10 }, 
+  { time: '18 พ.ค.', price: 189.05 }, { time: '19 พ.ค.', price: 191.30 }, 
+  { time: '20 พ.ค.', price: 192.50 }
+];
 
-  // ข้อมูลจำลองหุ้น
-  const stockList = [
-    { id: 1, symbol: 'SDOT', name: 'Sadot Group', price: '20.11', change: '+105.2%', score: 81, tag: 'High Vol' },
-    { id: 2, symbol: 'STAK', name: 'STAK Inc.', price: '7.50', change: '+24.2%', score: 98, tag: 'Breakout' },
-    { id: 3, symbol: 'PETZ', name: 'TDH Holdings', price: '1.61', change: '+32.8%', score: 83, tag: 'Micro Cap' },
-    { id: 4, symbol: 'EXPI', name: 'eXp World', price: '5.74', change: '+30.6%', score: 62, tag: 'Value' },
-  ];
+export default function InvestneetFullApp() {
+  const [activeMenu, setActiveMenu] = useState('home'); 
+  const [momentumScore, setMomentumScore] = useState(20);
+  const [searchQuery, setSearchQuery] = useState(''); 
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const [stockList, setStockList] = useState([]); 
+  const [selectedStock, setSelectedStock] = useState(null); 
+  const [favorites, setFavorites] = useState([]); 
 
-  return (
-    <div className="min-h-screen bg-[#F6F9FC] text-[#1E293B] font-sans pb-28 max-w-md mx-auto shadow-2xl relative selection:bg-[#3B82F6] selection:text-white">
+  // 🔑 ใส่ API Key ของคุณเรียบร้อยแล้ว!
+  const API_KEY = 'd8npv6pr01qvvn99tpr0'; 
+  
+  const symbolsToScan = ['AAPL', 'TSLA', 'MSFT', 'META', 'GOOGL', 'AMZN', 'NVDA'];
+
+  // โหลดข้อมูลหัวใจจากความจำเครื่อง
+  useEffect(() => {
+    const savedFavs = localStorage.getItem('myWatchlist');
+    if (savedFavs) setFavorites(JSON.parse(savedFavs));
+  }, []);
+
+  // กดหัวใจเพื่อเพิ่ม/ลบ
+  const toggleFavorite = (symbol) => {
+    let newFavs = favorites.includes(symbol) ? favorites.filter(fav => fav !== symbol) : [...favorites, symbol];
+    setFavorites(newFavs);
+    localStorage.setItem('myWatchlist', JSON.stringify(newFavs));
+  };
+
+  // ดึงข้อมูล API ของจริง
+  const fetchLiveMarketData = async () => {
+    setIsLoading(true);
+    try {
+      const promises = symbolsToScan.map(async (symbol) => {
+        const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${API_KEY}`);
+        const data = await response.json();
+
+        // ถ้า API มีปัญหา จะโชว์คำว่า API Error แทนหน้าจอว่างๆ
+        if (data.error || typeof data.c === 'undefined' || data.c === 0) {
+           return { id: symbol, symbol: symbol, name: `${symbol} Inc.`, price: '0.00', change: 'API Error', score: 0, marketCap: '-' };
+        }
+
+        return {
+          id: symbol, symbol: symbol, name: `${symbol} Inc.`, 
+          price: data.c.toFixed(2),
+          change: data.dp ? (data.dp > 0 ? `+${data.dp.toFixed(2)}%` : `${data.dp.toFixed(2)}%`) : '0.00%',
+          score: Math.floor(Math.random() * 40) + 60, marketCap: 'Large Cap' 
+        };
+      });
+
+      const realStocksData = await Promise.all(promises);
+      setStockList(realStocksData);
       
-      {/* --- HEADER --- */}
-      <header className="px-6 pt-8 pb-4 flex justify-between items-center bg-[#F6F9FC]/90 backdrop-blur-md sticky top-0 z-40">
-        <div className="flex flex-col">
-          <span className="text-[10px] font-bold tracking-widest text-[#94A3B8] uppercase mb-1">Portfolio Scanner</span>
-          <h1 className="text-xl font-black tracking-tight text-[#0F172A] flex items-center gap-2">
-            <Activity className="w-5 h-5 text-[#3B82F6] stroke-[2.5]" />
-            Stock Redar
-          </h1>
+      // เลือกหุ้นตัวแรกให้แสดงกราฟอัตโนมัติ
+      if (realStocksData.length > 0) {
+         setSelectedStock(realStocksData[0]);
+      }
+
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+    setIsLoading(false);
+  };
+
+  // ให้ดึงข้อมูลทันทีเมื่อเปิดเว็บ
+  useEffect(() => {
+    fetchLiveMarketData();
+  }, []);
+
+  // แผงกราฟด้านขวา
+  const renderDetailPanel = () => (
+    <div className="w-[350px] bg-[#FAF6EE] rounded-2xl p-5 border border-[#EBE5D8] flex flex-col gap-4 flex-shrink-0 shadow-sm relative">
+      {selectedStock ? (
+        <>
+          <div>
+            <p className="text-[10px] font-bold text-gray-500 uppercase">{selectedStock.name} • NASDAQ</p>
+            <div className="flex items-center justify-between">
+              <h1 className="text-3xl font-black text-[#3E3A35]">{selectedStock.symbol}</h1>
+              <button 
+                onClick={() => toggleFavorite(selectedStock.symbol)}
+                className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors shadow-sm ${
+                  favorites.includes(selectedStock.symbol) ? 'bg-red-50 border-red-200 text-red-500' : 'bg-white border-gray-300 text-gray-400 hover:text-red-400'
+                }`}
+              >
+                <Heart className={`w-5 h-5 ${favorites.includes(selectedStock.symbol) ? 'fill-current' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex gap-1 bg-[#EBE5D8] p-1 rounded-lg">
+            <button className="flex-1 bg-[#2B303A] text-white text-xs font-bold py-1.5 rounded-md">Price</button>
+            <button className="flex-1 text-[#3E3A35] text-xs font-bold py-1.5 rounded-md hover:bg-white/50">Relative</button>
+          </div>
+
+          <div className="h-[200px] w-full bg-white border border-[#EBE5D8] rounded-xl pt-4 pr-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}><XAxis dataKey="time" hide /><YAxis domain={['auto', 'auto']} orientation="left" tick={{fontSize: 10, fill: '#9CA3AF'}} axisLine={false} tickLine={false} width={40} /><Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} /><Line type="monotone" dataKey="price" stroke="#8FA872" strokeWidth={2} dot={{r: 3, fill: '#8FA872'}} /></LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div>
+            <div className="flex items-end gap-2 mb-4">
+              <h2 className="text-3xl font-black text-[#2B303A]">{selectedStock.price} <span className="text-sm font-bold text-gray-400">USD</span></h2>
+              <span className={`font-bold text-sm mb-1 ${selectedStock.change.includes('+') ? 'text-[#8FA872]' : 'text-red-500'}`}>{selectedStock.change} วันนี้</span>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-y-3 text-xs mb-4">
+              <div className="flex justify-between pr-4"><span className="text-gray-500 font-bold">MARKET CAP</span><span className="font-black">Large</span></div>
+              <div className="flex justify-between"><span className="text-gray-500 font-bold">AI SCORE</span><span className="font-black">{selectedStock.score}</span></div>
+            </div>
+
+            <div className="flex gap-3 mt-auto">
+              <button className="flex-1 bg-[#8FA872] text-white font-bold py-3 rounded-xl shadow-sm hover:bg-[#7D9661]">Buy</button>
+              <button className="flex-1 bg-white border border-gray-300 text-gray-700 font-bold py-3 rounded-xl shadow-sm hover:bg-gray-50">Sell</button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center text-gray-400 opacity-50">
+          <Activity className="w-12 h-12 mb-2" />
+          <p className="text-sm font-bold">กำลังดึงข้อมูล...</p>
         </div>
-        <button className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm border border-[#E2E8F0] text-[#3B82F6] hover:bg-[#EFF6FF] transition-colors">
-          <SlidersHorizontal className="w-4 h-4 stroke-[2.5]" />
-        </button>
+      )}
+    </div>
+  );
+
+  // หน้า HOME
+  const renderHomeView = () => {
+    const filteredStocks = stockList.filter(stock => stock.symbol.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    return (
+      <>
+        <div className="w-[300px] flex flex-col gap-5 flex-shrink-0 animate-in fade-in duration-300">
+          <div>
+            <p className="text-[11px] font-bold text-[#8FA872] mb-1">ค้นหาหุ้น</p>
+            <input 
+              type="text" placeholder="พิมพ์ชื่อย่อหุ้น..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white border border-[#EBE5D8] rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:border-[#8FA872] transition-colors shadow-sm" 
+            />
+          </div>
+          <button onClick={fetchLiveMarketData} disabled={isLoading} className="w-full bg-[#8FA872] hover:bg-[#7D9661] disabled:bg-[#A7C08A] text-white py-3 rounded-xl font-bold shadow-sm flex items-center justify-center gap-2 text-sm tracking-widest uppercase">
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : '▶ REAL-TIME SCAN'}
+          </button>
+          <div className="bg-[#FAF6EE] rounded-xl p-4 border border-[#EBE5D8]">
+            <div className="flex justify-between text-center text-xs text-gray-500 mb-2"><div>ตลาด<br/><span className="text-sm font-bold text-[#3E3A35]">US</span></div><div>สแกนพบ<br/><span className="text-sm font-bold text-[#3E3A35]">{filteredStocks.length} หุ้น</span></div></div>
+            <div className="w-full h-2 rounded-full bg-gradient-to-r from-blue-600 via-green-500 to-[#8FA872] mb-2"></div><p className="text-[10px] text-gray-500 text-center">ดึงข้อมูลจริงจาก Finnhub API</p>
+          </div>
+        </div>
+
+        <div className="flex-1 flex flex-col gap-4 animate-in fade-in duration-300">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-[10px] font-bold tracking-widest text-[#8FA872] uppercase mb-1">LIVE DATA STREAMING</p>
+              <h2 className="text-xl font-black text-[#3E3A35] flex items-center gap-2"><span className="w-6 h-6 bg-[#EBE5D8] rounded-full flex items-center justify-center text-sm">🌐</span>ราคาหุ้นอเมริกาแบบเรียลไทม์</h2>
+            </div>
+          </div>
+          <div className="bg-[#FAF6EE] rounded-xl border border-[#EBE5D8] overflow-hidden relative min-h-[300px]">
+            {isLoading && (<div className="absolute inset-0 bg-[#FAF6EE]/70 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center"><Loader2 className="w-8 h-8 text-[#8FA872] animate-spin mb-2" /></div>)}
+            <table className="w-full text-left border-collapse">
+              <thead><tr className="text-[10px] font-bold text-gray-400 uppercase border-b border-[#EBE5D8]"><th className="py-3 px-4">หุ้น (Symbol)</th><th className="py-3 px-2 text-right">ราคา</th><th className="py-3 px-2 text-right">เปลี่ยนแปลง</th><th className="py-3 px-4 text-right">AI SCORE</th></tr></thead>
+              <tbody className="divide-y divide-[#EBE5D8]">
+                {filteredStocks.map((stock, idx) => (
+                  <tr key={idx} onClick={() => setSelectedStock(stock)} className={`transition-colors cursor-pointer ${selectedStock?.symbol === stock.symbol ? 'bg-white shadow-sm ring-1 ring-[#8FA872]' : 'hover:bg-white'}`}>
+                    <td className="py-3 px-4"><div className="font-black text-sm text-[#3E3A35]">{stock.symbol}</div><div className="text-[10px] text-gray-500">{stock.name}</div></td>
+                    <td className="py-3 px-2 text-right font-black text-sm text-[#2B303A]">${stock.price}</td>
+                    <td className="py-3 px-2 text-right"><span className={`font-bold text-sm px-2 py-1 rounded-md ${stock.change.includes('+') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{stock.change}</span></td>
+                    <td className="py-3 px-4 text-right font-black text-[#3E3A35]">{stock.score}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filteredStocks.length === 0 && !isLoading && <div className="p-8 text-center text-gray-400 font-bold">ไม่พบหุ้นที่ค้นหา หรือ API ขัดข้อง</div>}
+          </div>
+        </div>
+
+        {renderDetailPanel()}
+      </>
+    );
+  };
+
+  // หน้า WATCHLIST
+  const renderWatchlistView = () => {
+    const favoriteStocks = stockList.filter(stock => favorites.includes(stock.symbol));
+    return (
+      <>
+        <div className="flex-1 flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-300">
+          <header className="mb-4">
+            <p className="text-[10px] font-bold tracking-widest text-[#8FA872] uppercase mb-1">PERSONAL PORTFOLIO</p>
+            <h1 className="text-3xl font-black text-[#3E3A35] flex items-center gap-3"><Heart className="w-8 h-8 text-red-500 fill-current" /> My Watchlist</h1>
+            <p className="text-sm text-gray-500 mt-2">หุ้นที่คุณติดตามไว้ทั้งหมด {favorites.length} รายการ (บันทึกในเครื่อง)</p>
+          </header>
+
+          <div className="bg-[#FAF6EE] rounded-xl border border-[#EBE5D8] overflow-hidden relative min-h-[300px]">
+            {favoriteStocks.length > 0 ? (
+              <table className="w-full text-left border-collapse">
+                <thead><tr className="text-[10px] font-bold text-gray-400 uppercase border-b border-[#EBE5D8]"><th className="py-3 px-4">หุ้น (Symbol)</th><th className="py-3 px-2 text-right">ราคา</th><th className="py-3 px-2 text-right">เปลี่ยนแปลง</th><th className="py-3 px-4 text-center">ลบ</th></tr></thead>
+                <tbody className="divide-y divide-[#EBE5D8]">
+                  {favoriteStocks.map((stock, idx) => (
+                    <tr key={idx} onClick={() => setSelectedStock(stock)} className={`transition-colors cursor-pointer ${selectedStock?.symbol === stock.symbol ? 'bg-white shadow-sm ring-1 ring-[#8FA872]' : 'hover:bg-white'}`}>
+                      <td className="py-3 px-4"><div className="font-black text-sm text-[#3E3A35]">{stock.symbol}</div></td>
+                      <td className="py-3 px-2 text-right font-black text-sm text-[#2B303A]">${stock.price}</td>
+                      <td className="py-3 px-2 text-right"><span className={`font-bold text-sm px-2 py-1 rounded-md ${stock.change.includes('+') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{stock.change}</span></td>
+                      <td className="py-3 px-4 text-center">
+                        <button onClick={(e) => { e.stopPropagation(); toggleFavorite(stock.symbol); }} className="text-gray-300 hover:text-red-500 transition-colors p-1"><Trash2 className="w-4 h-4 mx-auto" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-[300px] text-gray-400"><Heart className="w-12 h-12 mb-3 opacity-20" /><p className="font-bold">ยังไม่มีหุ้นใน Watchlist</p><button onClick={() => setActiveMenu('home')} className="mt-4 px-4 py-2 bg-[#8FA872] text-white rounded-lg text-sm font-bold shadow-sm">ไปหาหุ้นกันเลย</button></div>
+            )}
+          </div>
+        </div>
+        {renderDetailPanel()}
+      </>
+    );
+  };
+
+  // หน้า PROFILE
+  const renderProfileView = () => (
+    <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col gap-6 animate-in slide-in-from-bottom-4 duration-300">
+      <header className="bg-[#FAF6EE] rounded-3xl p-8 border border-[#EBE5D8] flex items-center gap-6 shadow-sm">
+        <div className="w-24 h-24 bg-[#EBE5D8] rounded-full flex items-center justify-center border-4 border-white shadow-sm"><User className="w-12 h-12 text-gray-400" /></div>
+        <div>
+          <h1 className="text-3xl font-black text-[#3E3A35]">Guest Investor</h1>
+          <p className="text-sm text-gray-500 mt-1">Free Plan • สมัครเมื่อ 14 มิ.ย. 2026</p>
+          <div className="flex gap-2 mt-3"><span className="bg-[#8FA872] text-white text-xs font-bold px-3 py-1 rounded-full">API Connected</span></div>
+        </div>
       </header>
 
-      {/* --- SEARCH (Clean White) --- */}
-      <div className="px-6 mb-6">
-        <div className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] group-focus-within:text-[#3B82F6] transition-colors" />
-          <input 
-            type="text" 
-            placeholder="ค้นหาหุ้น หรือคีย์เวิร์ด..." 
-            className="w-full bg-white border border-[#E2E8F0] rounded-full py-3.5 pl-12 pr-4 text-sm focus:outline-none focus:border-[#3B82F6] focus:ring-4 focus:ring-[#DBEAFE] transition-all shadow-sm placeholder:text-[#CBD5E1] font-medium"
-          />
+      <div className="grid grid-cols-2 gap-6">
+        <div className="bg-white rounded-2xl p-6 border border-[#EBE5D8] shadow-sm">
+          <div className="flex items-center gap-3 mb-4"><Wallet className="w-6 h-6 text-[#8FA872]" /><h2 className="text-lg font-bold">Paper Trading Balance</h2></div>
+          <p className="text-4xl font-black text-[#2B303A]">$100,000.00</p>
+          <p className="text-sm text-gray-500 mt-1">เงินจำลองสำหรับฝึกเทรด</p>
         </div>
-      </div>
-
-      {/* --- BENTO MENU (Pastel Pop Grid) --- */}
-      <div className="px-6 mb-8">
-        <div className="flex justify-between items-end mb-3">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-[#94A3B8]">Market Catalogs</h2>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          {/* Bento Box 1: Bright Blue */}
-          <div className="col-span-2 bg-[#3B82F6] text-white p-4 rounded-2xl shadow-md shadow-blue-500/20 cursor-pointer hover:bg-[#2563EB] transition-all flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md">
-                <Box className="w-5 h-5 text-white stroke-[2]" />
-              </div>
-              <div>
-                <p className="text-sm font-bold">S&P 500 Core</p>
-                <p className="text-[10px] text-blue-100 font-medium">ดัชนีหุ้นขนาดใหญ่ 500 ตัว</p>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-blue-200" />
-          </div>
-
-          {/* Bento Box 2: Pastel Yellow */}
-          <div className="bg-[#FEF9C3] p-4 rounded-2xl shadow-sm cursor-pointer hover:bg-[#FEF08A] transition-colors flex flex-col justify-between aspect-[4/3] border border-[#FDE047]/30">
-            <TrendingUp className="w-6 h-6 text-[#D97706] mb-2 stroke-[2]" />
-            <div>
-              <p className="text-sm font-bold text-[#92400E]">Nasdaq</p>
-              <p className="text-[10px] font-medium text-[#B45309]">สายเทคโนโลยี</p>
-            </div>
-          </div>
-
-          {/* Bento Box 3: Pastel Green */}
-          <div className="bg-[#D1FAE5] p-4 rounded-2xl shadow-sm cursor-pointer hover:bg-[#A7F3D0] transition-colors flex flex-col justify-between aspect-[4/3] border border-[#6EE7B7]/30">
-            <User className="w-6 h-6 text-[#059669] mb-2 stroke-[2]" />
-            <div>
-              <p className="text-sm font-bold text-[#065F46]">Alpha Pro</p>
-              <p className="text-[10px] font-medium text-[#047857]">ผู้บริหารระดับสูง</p>
-            </div>
+        <div className="bg-white rounded-2xl p-6 border border-[#EBE5D8] shadow-sm">
+          <div className="flex items-center gap-3 mb-4"><PieChart className="w-6 h-6 text-blue-500" /><h2 className="text-lg font-bold">Portfolio Stats</h2></div>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm"><span className="text-gray-500">หุ้นที่ติดตาม (Watchlist)</span><span className="font-bold">{favorites.length} ตัว</span></div>
+            <div className="flex justify-between text-sm"><span className="text-gray-500">ความแม่นยำ AI</span><span className="font-bold text-[#8FA872]">84%</span></div>
           </div>
         </div>
       </div>
 
-      {/* --- SMART BANNER --- */}
-      <div className="px-6 mb-8">
-        <div className="bg-white rounded-2xl p-4 flex items-center justify-between cursor-pointer border border-[#E2E8F0] shadow-sm hover:border-[#3B82F6]/30 transition-all">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#EFF6FF] rounded-full flex items-center justify-center text-[#3B82F6]">
-              <Sparkles className="w-5 h-5 stroke-[2]" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-[#1E293B]">ปรัชญาการจัดพอร์ต</p>
-              <p className="text-[10px] font-medium text-[#64748B]">เคล็ดลับการลงทุนแบบเซน</p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-[#CBD5E1]" />
-        </div>
+      <div className="bg-white rounded-2xl border border-[#EBE5D8] shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-[#EBE5D8] hover:bg-gray-50 cursor-pointer flex justify-between items-center"><div className="flex items-center gap-3"><Settings className="w-5 h-5 text-gray-400"/><span className="font-bold">ตั้งค่าบัญชีและ API</span></div><ChevronRight className="w-4 h-4 text-gray-300"/></div>
+        <div className="p-4 border-b border-[#EBE5D8] hover:bg-gray-50 cursor-pointer flex justify-between items-center"><div className="flex items-center gap-3"><HelpCircle className="w-5 h-5 text-gray-400"/><span className="font-bold">ช่วยเหลือและศูนย์สนับสนุน</span></div><ChevronRight className="w-4 h-4 text-gray-300"/></div>
+        <div className="p-4 hover:bg-red-50 cursor-pointer flex justify-between items-center text-red-500"><div className="flex items-center gap-3"><LogOut className="w-5 h-5"/><span className="font-bold">ออกจากระบบ</span></div></div>
       </div>
+    </div>
+  );
 
-      {/* --- FILTER & TIMEFRAME --- */}
-      <div className="px-6 mb-6">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-[#94A3B8]">Redar Settings</h2>
+  return (
+    <div className="min-h-screen bg-[#FDFBF7] text-[#3E3A35] font-sans flex relative selection:bg-[#8FA872] selection:text-white">
+      
+      {/* SIDEBAR */}
+      <nav className="w-16 bg-[#2B303A] text-[#8FA872] flex flex-col items-center py-6 fixed h-full z-50 transition-all">
+        <div className="bg-blue-600 w-full h-12 mb-6 flex items-center justify-center shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]"><Activity className="w-6 h-6 text-white" /></div>
+        <div className="flex flex-col gap-8 flex-1 w-full items-center mt-4">
+          <button onClick={() => setActiveMenu('home')} className={`transition-colors relative ${activeMenu === 'home' ? 'text-white' : 'text-gray-400 hover:text-[#A7C08A]'}`}><Home className="w-6 h-6" />{activeMenu === 'home' && <span className="absolute -left-5 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#8FA872] rounded-r-md"></span>}</button>
+          <button onClick={() => setActiveMenu('watchlist')} className={`transition-colors relative ${activeMenu === 'watchlist' ? 'text-white' : 'text-gray-400 hover:text-[#A7C08A]'}`}><Heart className="w-6 h-6" /><span className="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{favorites.length}</span>{activeMenu === 'watchlist' && <span className="absolute -left-5 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#8FA872] rounded-r-md"></span>}</button>
+          <button onClick={() => setActiveMenu('profile')} className={`transition-colors relative ${activeMenu === 'profile' ? 'text-white' : 'text-gray-400 hover:text-[#A7C08A]'}`}><User className="w-6 h-6" />{activeMenu === 'profile' && <span className="absolute -left-5 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#8FA872] rounded-r-md"></span>}</button>
+          <div className="w-8 h-px bg-gray-600 my-2"></div>
+          <button className="text-gray-500 hover:text-white transition-colors"><Search className="w-5 h-5" /></button>
+          <button className="text-gray-500 hover:text-white transition-colors"><MessageSquare className="w-5 h-5" /></button>
         </div>
-        <div className="bg-white p-1.5 rounded-xl border border-[#E2E8F0] flex shadow-sm mb-4">
-          {['1D', '1W', '1M', '3M', 'YTD'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                activeTab === tab 
-                  ? 'bg-[#3B82F6] text-white shadow-sm' 
-                  : 'text-[#64748B] hover:text-[#1E293B] hover:bg-[#F1F5F9]'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+      </nav>
 
-        {/* Minimal Slider */}
-        <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-sm">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-xs font-medium text-[#64748B]">ระดับความเข้มข้น (Momentum)</span>
-            <span className="text-xs font-black text-[#3B82F6] bg-[#DBEAFE] px-2 py-0.5 rounded-md">{momentumScore}</span>
-          </div>
-          <input 
-            type="range"
-            min="0"
-            max="100"
-            value={momentumScore}
-            onChange={(e) => setMomentumScore(Number(e.target.value))}
-            className="w-full accent-[#3B82F6] bg-[#E2E8F0] h-1.5 rounded-full appearance-none cursor-pointer"
-          />
-        </div>
-      </div>
-
-      {/* --- STOCK REDAR LIST --- */}
-      <div className="px-6 mb-4">
-        <h3 className="text-sm font-bold text-[#1E293B] mb-3">ผลการสแกนล่าสุด</h3>
-        
-        <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden shadow-sm">
-          {stockList.map((item, index) => (
-            <div 
-              key={item.id}
-              className={`p-4 flex items-center justify-between hover:bg-[#F8FAFC] transition-colors cursor-pointer ${
-                index !== stockList.length - 1 ? 'border-b border-[#F1F5F9]' : ''
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-8 text-center text-xs font-black text-[#CBD5E1]">
-                  {String(index + 1).padStart(2, '0')}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-bold text-sm text-[#0F172A]">{item.symbol}</span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-[#FEF9C3] text-[#D97706] font-bold">
-                      {item.tag}
-                    </span>
-                  </div>
-                  <span className="text-[11px] font-medium text-[#64748B]">{item.name}</span>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <span className="text-sm font-black text-[#10B981] block mb-0.5">{item.change}</span>
-                <span className="text-[11px] font-medium text-[#64748B]">${item.price} • M-Score: <span className="font-bold text-[#1E293B]">{item.score}</span></span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* --- FLOATING BOTTOM NAV (Bright White Style) --- */}
-      <div className="fixed bottom-6 left-0 right-0 max-w-sm mx-auto px-6 z-50">
-        <div className="bg-white/90 backdrop-blur-md text-[#94A3B8] px-6 py-3 rounded-full flex justify-between items-center shadow-xl shadow-slate-200/50 border border-[#E2E8F0]">
-          <button className="p-2 text-[#3B82F6] flex flex-col items-center">
-            <Home className="w-5 h-5 stroke-[2.5]" />
-          </button>
-          <button className="p-2 hover:text-[#3B82F6] transition-colors flex flex-col items-center">
-            <BarChart2 className="w-5 h-5 stroke-[2]" />
-          </button>
-          
-          {/* Main Action (Scan) */}
-          <button className="w-14 h-14 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-full shadow-lg shadow-blue-500/30 flex items-center justify-center transition-transform active:scale-95 -mt-8 border-4 border-[#F6F9FC]">
-            <Search className="w-6 h-6 stroke-[2.5]" />
-          </button>
-
-          <button className="p-2 hover:text-[#3B82F6] transition-colors flex flex-col items-center">
-            <Bookmark className="w-5 h-5 stroke-[2]" />
-          </button>
-          <button className="p-2 hover:text-[#3B82F6] transition-colors flex flex-col items-center">
-            <User className="w-5 h-5 stroke-[2]" />
-          </button>
-        </div>
+      {/* MAIN CONTENT AREA */}
+      <div className="ml-16 flex w-full max-w-7xl mx-auto p-6 gap-6 h-screen overflow-y-auto pb-10">
+        {activeMenu === 'home' && renderHomeView()}
+        {activeMenu === 'watchlist' && renderWatchlistView()}
+        {activeMenu === 'profile' && renderProfileView()}
       </div>
 
     </div>
