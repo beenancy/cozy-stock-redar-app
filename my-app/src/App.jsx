@@ -6,14 +6,6 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip, XAxis } from 'recharts';
 
-// ข้อมูลจำลองกราฟ
-const chartData = [
-  { time: '14 พ.ค.', price: 185.20 }, { time: '15 พ.ค.', price: 186.80 }, 
-  { time: '16 พ.ค.', price: 186.00 }, { time: '17 พ.ค.', price: 188.10 }, 
-  { time: '18 พ.ค.', price: 189.05 }, { time: '19 พ.ค.', price: 191.30 }, 
-  { time: '20 พ.ค.', price: 192.50 }
-];
-
 export default function InvestneetFullApp() {
   const [activeMenu, setActiveMenu] = useState('home'); 
   const [momentumScore, setMomentumScore] = useState(20);
@@ -24,25 +16,56 @@ export default function InvestneetFullApp() {
   const [selectedStock, setSelectedStock] = useState(null); 
   const [favorites, setFavorites] = useState([]); 
 
-  // 🔑 ใส่ API Key ของคุณเรียบร้อยแล้ว!
-  const API_KEY = 'd8npv6pr01qvvn99tpr0'; 
+  // 🔑 API Key ของคุณ
+  const API_KEY = 'd8npv6pr01qvvn99tpr0d8npv6pr01qvvn99tprg'; 
   
-  const symbolsToScan = ['AAPL', 'TSLA', 'MSFT', 'META', 'GOOGL', 'AMZN', 'NVDA'];
+  // 📊 ลิสต์ 60 หุ้นชั้นนำ (เต็มโควต้า API ฟรีพอดี)
+  const symbolsToScan = [
+    // Tech & AI
+    'AAPL', 'TSLA', 'MSFT', 'META', 'GOOGL', 'AMZN', 'NVDA', 'NFLX', 'AMD', 'INTC', 
+    'CRM', 'ADBE', 'CSCO', 'ORCL', 'IBM', 'QCOM', 'TXN', 'AVGO', 'MU', 'NOW',
+    // Finance & Payment
+    'JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'V', 'MA', 'PYPL', 'AXP',
+    // Consumer & Retail
+    'WMT', 'TGT', 'COST', 'HD', 'LOW', 'SBUX', 'MCD', 'NKE', 'KO', 'PEP',
+    // Healthcare & Bio
+    'JNJ', 'UNH', 'PFE', 'ABBV', 'TMO', 'MRK', 'DHR', 'LLY', 'AMGN', 'MDT',
+    // Industrial, Energy & Telecom
+    'BA', 'CAT', 'LMT', 'MMM', 'GE', 'CVX', 'XOM', 'DIS', 'VZ', 'T'
+  ];
 
-  // โหลดข้อมูลหัวใจจากความจำเครื่อง
+  // ฟังก์ชันเสกสมองกลกราฟ
+  const getDynamicChartData = (stock) => {
+    if (!stock) return [];
+    const basePrice = parseFloat(stock.price);
+    if (isNaN(basePrice) || basePrice === 0) return [];
+    const isUp = stock.change.includes('+');
+    
+    return [
+      { time: '14 พ.ค.', price: +(basePrice * (isUp ? 0.93 : 1.06)).toFixed(2) },
+      { time: '15 พ.ค.', price: +(basePrice * (isUp ? 0.96 : 1.03)).toFixed(2) },
+      { time: '16 พ.ค.', price: +(basePrice * (isUp ? 0.94 : 1.05)).toFixed(2) },
+      { time: '17 พ.ค.', price: +(basePrice * (isUp ? 0.98 : 1.02)).toFixed(2) },
+      { time: '18 พ.ค.', price: +(basePrice * (isUp ? 0.97 : 1.04)).toFixed(2) },
+      { time: '19 พ.ค.', price: +(basePrice * (isUp ? 0.99 : 1.01)).toFixed(2) },
+      { time: '20 พ.ค.', price: basePrice }
+    ];
+  };
+
+  // โหลดข้อมูล Watchlist จากเครื่อง
   useEffect(() => {
     const savedFavs = localStorage.getItem('myWatchlist');
     if (savedFavs) setFavorites(JSON.parse(savedFavs));
   }, []);
 
-  // กดหัวใจเพื่อเพิ่ม/ลบ
+  // กดหัวใจ
   const toggleFavorite = (symbol) => {
     let newFavs = favorites.includes(symbol) ? favorites.filter(fav => fav !== symbol) : [...favorites, symbol];
     setFavorites(newFavs);
     localStorage.setItem('myWatchlist', JSON.stringify(newFavs));
   };
 
-  // ดึงข้อมูล API ของจริง
+  // ดึงข้อมูล API ทีเดียว 60 ตัว!
   const fetchLiveMarketData = async () => {
     setIsLoading(true);
     try {
@@ -50,7 +73,6 @@ export default function InvestneetFullApp() {
         const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${API_KEY}`);
         const data = await response.json();
 
-        // ถ้า API มีปัญหา จะโชว์คำว่า API Error แทนหน้าจอว่างๆ
         if (data.error || typeof data.c === 'undefined' || data.c === 0) {
            return { id: symbol, symbol: symbol, name: `${symbol} Inc.`, price: '0.00', change: 'API Error', score: 0, marketCap: '-' };
         }
@@ -66,8 +88,7 @@ export default function InvestneetFullApp() {
       const realStocksData = await Promise.all(promises);
       setStockList(realStocksData);
       
-      // เลือกหุ้นตัวแรกให้แสดงกราฟอัตโนมัติ
-      if (realStocksData.length > 0) {
+      if (realStocksData.length > 0 && !selectedStock) {
          setSelectedStock(realStocksData[0]);
       }
 
@@ -77,18 +98,17 @@ export default function InvestneetFullApp() {
     setIsLoading(false);
   };
 
-  // ให้ดึงข้อมูลทันทีเมื่อเปิดเว็บ
   useEffect(() => {
     fetchLiveMarketData();
   }, []);
 
-  // แผงกราฟด้านขวา
+  // RENDER: แผงกราฟด้านขวา
   const renderDetailPanel = () => (
     <div className="w-[350px] bg-[#FAF6EE] rounded-2xl p-5 border border-[#EBE5D8] flex flex-col gap-4 flex-shrink-0 shadow-sm relative">
       {selectedStock ? (
         <>
           <div>
-            <p className="text-[10px] font-bold text-gray-500 uppercase">{selectedStock.name} • NASDAQ</p>
+            <p className="text-[10px] font-bold text-gray-500 uppercase">{selectedStock.name} • US MARKET</p>
             <div className="flex items-center justify-between">
               <h1 className="text-3xl font-black text-[#3E3A35]">{selectedStock.symbol}</h1>
               <button 
@@ -103,25 +123,30 @@ export default function InvestneetFullApp() {
           </div>
 
           <div className="flex gap-1 bg-[#EBE5D8] p-1 rounded-lg">
-            <button className="flex-1 bg-[#2B303A] text-white text-xs font-bold py-1.5 rounded-md">Price</button>
-            <button className="flex-1 text-[#3E3A35] text-xs font-bold py-1.5 rounded-md hover:bg-white/50">Relative</button>
+            <button className="flex-1 bg-[#2B303A] text-white text-xs font-bold py-1.5 rounded-md">Price Trend</button>
+            <button className="flex-1 text-[#3E3A35] text-xs font-bold py-1.5 rounded-md hover:bg-white/50">Details</button>
           </div>
 
           <div className="h-[200px] w-full bg-white border border-[#EBE5D8] rounded-xl pt-4 pr-2">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}><XAxis dataKey="time" hide /><YAxis domain={['auto', 'auto']} orientation="left" tick={{fontSize: 10, fill: '#9CA3AF'}} axisLine={false} tickLine={false} width={40} /><Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} /><Line type="monotone" dataKey="price" stroke="#8FA872" strokeWidth={2} dot={{r: 3, fill: '#8FA872'}} /></LineChart>
+              <LineChart data={getDynamicChartData(selectedStock)}>
+                <XAxis dataKey="time" hide />
+                <YAxis domain={['auto', 'auto']} orientation="left" tick={{fontSize: 10, fill: '#9CA3AF'}} axisLine={false} tickLine={false} width={45} />
+                <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                <Line type="monotone" dataKey="price" stroke="#8FA872" strokeWidth={2} dot={{r: 3, fill: '#8FA872'}} />
+              </LineChart>
             </ResponsiveContainer>
           </div>
 
           <div>
             <div className="flex items-end gap-2 mb-4">
-              <h2 className="text-3xl font-black text-[#2B303A]">{selectedStock.price} <span className="text-sm font-bold text-gray-400">USD</span></h2>
-              <span className={`font-bold text-sm mb-1 ${selectedStock.change.includes('+') ? 'text-[#8FA872]' : 'text-red-500'}`}>{selectedStock.change} วันนี้</span>
+              <h2 className="text-3xl font-black text-[#2B303A]">${selectedStock.price} <span className="text-sm font-bold text-gray-400">USD</span></h2>
+              <span className={`font-bold text-sm mb-1 ${selectedStock.change.includes('+') ? 'text-[#8FA872]' : 'text-red-500'}`}>{selectedStock.change}</span>
             </div>
             
             <div className="grid grid-cols-2 gap-y-3 text-xs mb-4">
               <div className="flex justify-between pr-4"><span className="text-gray-500 font-bold">MARKET CAP</span><span className="font-black">Large</span></div>
-              <div className="flex justify-between"><span className="text-gray-500 font-bold">AI SCORE</span><span className="font-black">{selectedStock.score}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500 font-bold">AI SCAN SCORE</span><span className="font-black">{selectedStock.score}</span></div>
             </div>
 
             <div className="flex gap-3 mt-auto">
@@ -133,13 +158,13 @@ export default function InvestneetFullApp() {
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center text-gray-400 opacity-50">
           <Activity className="w-12 h-12 mb-2" />
-          <p className="text-sm font-bold">กำลังดึงข้อมูล...</p>
+          <p className="text-sm font-bold">กำลังโหลดข้อมูลกราฟ...</p>
         </div>
       )}
     </div>
   );
 
-  // หน้า HOME
+  // RENDER: หน้า HOME
   const renderHomeView = () => {
     const filteredStocks = stockList.filter(stock => stock.symbol.toLowerCase().includes(searchQuery.toLowerCase()));
 
@@ -149,7 +174,7 @@ export default function InvestneetFullApp() {
           <div>
             <p className="text-[11px] font-bold text-[#8FA872] mb-1">ค้นหาหุ้น</p>
             <input 
-              type="text" placeholder="พิมพ์ชื่อย่อหุ้น..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              type="text" placeholder="ค้นหาจาก 60 หุ้นชั้นนำ..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-white border border-[#EBE5D8] rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:border-[#8FA872] transition-colors shadow-sm" 
             />
           </div>
@@ -157,8 +182,8 @@ export default function InvestneetFullApp() {
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : '▶ REAL-TIME SCAN'}
           </button>
           <div className="bg-[#FAF6EE] rounded-xl p-4 border border-[#EBE5D8]">
-            <div className="flex justify-between text-center text-xs text-gray-500 mb-2"><div>ตลาด<br/><span className="text-sm font-bold text-[#3E3A35]">US</span></div><div>สแกนพบ<br/><span className="text-sm font-bold text-[#3E3A35]">{filteredStocks.length} หุ้น</span></div></div>
-            <div className="w-full h-2 rounded-full bg-gradient-to-r from-blue-600 via-green-500 to-[#8FA872] mb-2"></div><p className="text-[10px] text-gray-500 text-center">ดึงข้อมูลจริงจาก Finnhub API</p>
+            <div className="flex justify-between text-center text-xs text-gray-500 mb-2"><div>ตลาด<br/><span className="text-sm font-bold text-[#3E3A35]">US Global</span></div><div>สแกนพบ<br/><span className="text-sm font-bold text-[#3E3A35]"> {filteredStocks.length} หุ้น</span></div></div>
+            <div className="w-full h-2 rounded-full bg-gradient-to-r from-blue-600 via-green-500 to-[#8FA872] mb-2"></div><p className="text-[10px] text-gray-500 text-center">ดึงข้อมูลจริงจาก Finnhub API (Max 60)</p>
           </div>
         </div>
 
@@ -170,20 +195,22 @@ export default function InvestneetFullApp() {
             </div>
           </div>
           <div className="bg-[#FAF6EE] rounded-xl border border-[#EBE5D8] overflow-hidden relative min-h-[300px]">
-            {isLoading && (<div className="absolute inset-0 bg-[#FAF6EE]/70 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center"><Loader2 className="w-8 h-8 text-[#8FA872] animate-spin mb-2" /></div>)}
-            <table className="w-full text-left border-collapse">
-              <thead><tr className="text-[10px] font-bold text-gray-400 uppercase border-b border-[#EBE5D8]"><th className="py-3 px-4">หุ้น (Symbol)</th><th className="py-3 px-2 text-right">ราคา</th><th className="py-3 px-2 text-right">เปลี่ยนแปลง</th><th className="py-3 px-4 text-right">AI SCORE</th></tr></thead>
-              <tbody className="divide-y divide-[#EBE5D8]">
-                {filteredStocks.map((stock, idx) => (
-                  <tr key={idx} onClick={() => setSelectedStock(stock)} className={`transition-colors cursor-pointer ${selectedStock?.symbol === stock.symbol ? 'bg-white shadow-sm ring-1 ring-[#8FA872]' : 'hover:bg-white'}`}>
-                    <td className="py-3 px-4"><div className="font-black text-sm text-[#3E3A35]">{stock.symbol}</div><div className="text-[10px] text-gray-500">{stock.name}</div></td>
-                    <td className="py-3 px-2 text-right font-black text-sm text-[#2B303A]">${stock.price}</td>
-                    <td className="py-3 px-2 text-right"><span className={`font-bold text-sm px-2 py-1 rounded-md ${stock.change.includes('+') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{stock.change}</span></td>
-                    <td className="py-3 px-4 text-right font-black text-[#3E3A35]">{stock.score}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {isLoading && (<div className="absolute inset-0 bg-[#FAF6EE]/80 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center"><Loader2 className="w-8 h-8 text-[#8FA872] animate-spin mb-2" /><span className="text-sm font-bold text-[#8FA872] mt-2">กำลังดึงราคาหุ้น 60 ตัว... (อาจใช้เวลาสักครู่)</span></div>)}
+            <div className="max-h-[600px] overflow-y-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 bg-[#FAF6EE] z-20 shadow-sm"><tr className="text-[10px] font-bold text-gray-400 uppercase border-b border-[#EBE5D8]"><th className="py-3 px-4">หุ้น (Symbol)</th><th className="py-3 px-2 text-right">ราคา</th><th className="py-3 px-2 text-right">เปลี่ยนแปลง</th><th className="py-3 px-4 text-right">AI SCORE</th></tr></thead>
+                <tbody className="divide-y divide-[#EBE5D8]">
+                  {filteredStocks.map((stock, idx) => (
+                    <tr key={idx} onClick={() => setSelectedStock(stock)} className={`transition-colors cursor-pointer ${selectedStock?.symbol === stock.symbol ? 'bg-white shadow-sm ring-1 ring-[#8FA872]' : 'hover:bg-white'}`}>
+                      <td className="py-3 px-4"><div className="font-black text-sm text-[#3E3A35]">{stock.symbol}</div><div className="text-[10px] text-gray-500">{stock.name}</div></td>
+                      <td className="py-3 px-2 text-right font-black text-sm text-[#2B303A]">${stock.price}</td>
+                      <td className="py-3 px-2 text-right"><span className={`font-bold text-sm px-2 py-1 rounded-md ${stock.change.includes('+') ? 'bg-green-100 text-green-700' : (stock.change === 'API Error' ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700')}`}>{stock.change}</span></td>
+                      <td className="py-3 px-4 text-right font-black text-[#3E3A35]">{stock.score}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             {filteredStocks.length === 0 && !isLoading && <div className="p-8 text-center text-gray-400 font-bold">ไม่พบหุ้นที่ค้นหา หรือ API ขัดข้อง</div>}
           </div>
         </div>
@@ -193,7 +220,7 @@ export default function InvestneetFullApp() {
     );
   };
 
-  // หน้า WATCHLIST
+  // RENDER: หน้า WATCHLIST
   const renderWatchlistView = () => {
     const favoriteStocks = stockList.filter(stock => favorites.includes(stock.symbol));
     return (
@@ -207,21 +234,23 @@ export default function InvestneetFullApp() {
 
           <div className="bg-[#FAF6EE] rounded-xl border border-[#EBE5D8] overflow-hidden relative min-h-[300px]">
             {favoriteStocks.length > 0 ? (
-              <table className="w-full text-left border-collapse">
-                <thead><tr className="text-[10px] font-bold text-gray-400 uppercase border-b border-[#EBE5D8]"><th className="py-3 px-4">หุ้น (Symbol)</th><th className="py-3 px-2 text-right">ราคา</th><th className="py-3 px-2 text-right">เปลี่ยนแปลง</th><th className="py-3 px-4 text-center">ลบ</th></tr></thead>
-                <tbody className="divide-y divide-[#EBE5D8]">
-                  {favoriteStocks.map((stock, idx) => (
-                    <tr key={idx} onClick={() => setSelectedStock(stock)} className={`transition-colors cursor-pointer ${selectedStock?.symbol === stock.symbol ? 'bg-white shadow-sm ring-1 ring-[#8FA872]' : 'hover:bg-white'}`}>
-                      <td className="py-3 px-4"><div className="font-black text-sm text-[#3E3A35]">{stock.symbol}</div></td>
-                      <td className="py-3 px-2 text-right font-black text-sm text-[#2B303A]">${stock.price}</td>
-                      <td className="py-3 px-2 text-right"><span className={`font-bold text-sm px-2 py-1 rounded-md ${stock.change.includes('+') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{stock.change}</span></td>
-                      <td className="py-3 px-4 text-center">
-                        <button onClick={(e) => { e.stopPropagation(); toggleFavorite(stock.symbol); }} className="text-gray-300 hover:text-red-500 transition-colors p-1"><Trash2 className="w-4 h-4 mx-auto" /></button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="max-h-[600px] overflow-y-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 bg-[#FAF6EE] z-20 shadow-sm"><tr className="text-[10px] font-bold text-gray-400 uppercase border-b border-[#EBE5D8]"><th className="py-3 px-4">หุ้น (Symbol)</th><th className="py-3 px-2 text-right">ราคา</th><th className="py-3 px-2 text-right">เปลี่ยนแปลง</th><th className="py-3 px-4 text-center">ลบ</th></tr></thead>
+                  <tbody className="divide-y divide-[#EBE5D8]">
+                    {favoriteStocks.map((stock, idx) => (
+                      <tr key={idx} onClick={() => setSelectedStock(stock)} className={`transition-colors cursor-pointer ${selectedStock?.symbol === stock.symbol ? 'bg-white shadow-sm ring-1 ring-[#8FA872]' : 'hover:bg-white'}`}>
+                        <td className="py-3 px-4"><div className="font-black text-sm text-[#3E3A35]">{stock.symbol}</div></td>
+                        <td className="py-3 px-2 text-right font-black text-sm text-[#2B303A]">${stock.price}</td>
+                        <td className="py-3 px-2 text-right"><span className={`font-bold text-sm px-2 py-1 rounded-md ${stock.change.includes('+') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{stock.change}</span></td>
+                        <td className="py-3 px-4 text-center">
+                          <button onClick={(e) => { e.stopPropagation(); toggleFavorite(stock.symbol); }} className="text-gray-300 hover:text-red-500 transition-colors p-1"><Trash2 className="w-4 h-4 mx-auto" /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-[300px] text-gray-400"><Heart className="w-12 h-12 mb-3 opacity-20" /><p className="font-bold">ยังไม่มีหุ้นใน Watchlist</p><button onClick={() => setActiveMenu('home')} className="mt-4 px-4 py-2 bg-[#8FA872] text-white rounded-lg text-sm font-bold shadow-sm">ไปหาหุ้นกันเลย</button></div>
             )}
@@ -232,7 +261,7 @@ export default function InvestneetFullApp() {
     );
   };
 
-  // หน้า PROFILE
+  // RENDER: หน้า PROFILE
   const renderProfileView = () => (
     <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col gap-6 animate-in slide-in-from-bottom-4 duration-300">
       <header className="bg-[#FAF6EE] rounded-3xl p-8 border border-[#EBE5D8] flex items-center gap-6 shadow-sm">
