@@ -4,7 +4,6 @@ import {
   Activity, Heart, Copy, HelpCircle, FileText, MessageSquare,
   Loader2, RefreshCw, Wallet, PieChart, Settings, LogOut, Trash2
 } from 'lucide-react';
-import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip, XAxis } from 'recharts';
 
 export default function InvestneetFullApp() {
   const [activeMenu, setActiveMenu] = useState('home'); 
@@ -19,38 +18,15 @@ export default function InvestneetFullApp() {
   // 🔑 API Key ของคุณ
   const API_KEY = 'd8npv6pr01qvvn99tpr0d8npv6pr01qvvn99tprg'; 
   
-  // 📊 ลิสต์ 60 หุ้นชั้นนำ (เต็มโควต้า API ฟรีพอดี)
+  // 📊 ลิสต์ 60 หุ้นชั้นนำ
   const symbolsToScan = [
-    // Tech & AI
     'AAPL', 'TSLA', 'MSFT', 'META', 'GOOGL', 'AMZN', 'NVDA', 'NFLX', 'AMD', 'INTC', 
     'CRM', 'ADBE', 'CSCO', 'ORCL', 'IBM', 'QCOM', 'TXN', 'AVGO', 'MU', 'NOW',
-    // Finance & Payment
     'JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'V', 'MA', 'PYPL', 'AXP',
-    // Consumer & Retail
     'WMT', 'TGT', 'COST', 'HD', 'LOW', 'SBUX', 'MCD', 'NKE', 'KO', 'PEP',
-    // Healthcare & Bio
     'JNJ', 'UNH', 'PFE', 'ABBV', 'TMO', 'MRK', 'DHR', 'LLY', 'AMGN', 'MDT',
-    // Industrial, Energy & Telecom
     'BA', 'CAT', 'LMT', 'MMM', 'GE', 'CVX', 'XOM', 'DIS', 'VZ', 'T'
   ];
-
-  // ฟังก์ชันเสกสมองกลกราฟ
-  const getDynamicChartData = (stock) => {
-    if (!stock) return [];
-    const basePrice = parseFloat(stock.price);
-    if (isNaN(basePrice) || basePrice === 0) return [];
-    const isUp = stock.change.includes('+');
-    
-    return [
-      { time: '14 พ.ค.', price: +(basePrice * (isUp ? 0.93 : 1.06)).toFixed(2) },
-      { time: '15 พ.ค.', price: +(basePrice * (isUp ? 0.96 : 1.03)).toFixed(2) },
-      { time: '16 พ.ค.', price: +(basePrice * (isUp ? 0.94 : 1.05)).toFixed(2) },
-      { time: '17 พ.ค.', price: +(basePrice * (isUp ? 0.98 : 1.02)).toFixed(2) },
-      { time: '18 พ.ค.', price: +(basePrice * (isUp ? 0.97 : 1.04)).toFixed(2) },
-      { time: '19 พ.ค.', price: +(basePrice * (isUp ? 0.99 : 1.01)).toFixed(2) },
-      { time: '20 พ.ค.', price: basePrice }
-    ];
-  };
 
   // โหลดข้อมูล Watchlist จากเครื่อง
   useEffect(() => {
@@ -65,7 +41,7 @@ export default function InvestneetFullApp() {
     localStorage.setItem('myWatchlist', JSON.stringify(newFavs));
   };
 
-  // ดึงข้อมูล API ทีเดียว 60 ตัว!
+  // ดึงข้อมูล API 60 ตัว
   const fetchLiveMarketData = async () => {
     setIsLoading(true);
     try {
@@ -102,7 +78,7 @@ export default function InvestneetFullApp() {
     fetchLiveMarketData();
   }, []);
 
-  // RENDER: แผงกราฟด้านขวา
+  // RENDER: แผงกราฟด้านขวา (อัปเกรดเป็น TradingView)
   const renderDetailPanel = () => (
     <div className="w-[350px] bg-[#FAF6EE] rounded-2xl p-5 border border-[#EBE5D8] flex flex-col gap-4 flex-shrink-0 shadow-sm relative">
       {selectedStock ? (
@@ -123,19 +99,18 @@ export default function InvestneetFullApp() {
           </div>
 
           <div className="flex gap-1 bg-[#EBE5D8] p-1 rounded-lg">
-            <button className="flex-1 bg-[#2B303A] text-white text-xs font-bold py-1.5 rounded-md">Price Trend</button>
+            <button className="flex-1 bg-[#2B303A] text-white text-xs font-bold py-1.5 rounded-md">Live Chart</button>
             <button className="flex-1 text-[#3E3A35] text-xs font-bold py-1.5 rounded-md hover:bg-white/50">Details</button>
           </div>
 
-          <div className="h-[200px] w-full bg-white border border-[#EBE5D8] rounded-xl pt-4 pr-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={getDynamicChartData(selectedStock)}>
-                <XAxis dataKey="time" hide />
-                <YAxis domain={['auto', 'auto']} orientation="left" tick={{fontSize: 10, fill: '#9CA3AF'}} axisLine={false} tickLine={false} width={45} />
-                <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
-                <Line type="monotone" dataKey="price" stroke="#8FA872" strokeWidth={2} dot={{r: 3, fill: '#8FA872'}} />
-              </LineChart>
-            </ResponsiveContainer>
+          {/* 📈 TRADINGVIEW WIDGET: กราฟแท่งเทียนของจริง */}
+          <div className="h-[260px] w-full bg-white border border-[#EBE5D8] rounded-xl overflow-hidden relative shadow-inner">
+            <iframe 
+              id={`tv-widget-${selectedStock.symbol}`}
+              src={`https://s.tradingview.com/widgetembed/?frameElementId=tv-widget-${selectedStock.symbol}&symbol=${selectedStock.symbol}&interval=D&hidesidetoolbar=1&hidetoptoolbar=1&symboledit=0&saveimage=0&toolbarbg=fff&studies=[]&hideideas=1&theme=light&style=1&timezone=Asia%2FBangkok&locale=th`}
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              title="TradingView Chart"
+            />
           </div>
 
           <div>
@@ -183,7 +158,7 @@ export default function InvestneetFullApp() {
           </button>
           <div className="bg-[#FAF6EE] rounded-xl p-4 border border-[#EBE5D8]">
             <div className="flex justify-between text-center text-xs text-gray-500 mb-2"><div>ตลาด<br/><span className="text-sm font-bold text-[#3E3A35]">US Global</span></div><div>สแกนพบ<br/><span className="text-sm font-bold text-[#3E3A35]"> {filteredStocks.length} หุ้น</span></div></div>
-            <div className="w-full h-2 rounded-full bg-gradient-to-r from-blue-600 via-green-500 to-[#8FA872] mb-2"></div><p className="text-[10px] text-gray-500 text-center">ดึงข้อมูลจริงจาก Finnhub API (Max 60)</p>
+            <div className="w-full h-2 rounded-full bg-gradient-to-r from-blue-600 via-green-500 to-[#8FA872] mb-2"></div><p className="text-[10px] text-gray-500 text-center">ดึงข้อมูลจริงจาก Finnhub API</p>
           </div>
         </div>
 
@@ -195,7 +170,7 @@ export default function InvestneetFullApp() {
             </div>
           </div>
           <div className="bg-[#FAF6EE] rounded-xl border border-[#EBE5D8] overflow-hidden relative min-h-[300px]">
-            {isLoading && (<div className="absolute inset-0 bg-[#FAF6EE]/80 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center"><Loader2 className="w-8 h-8 text-[#8FA872] animate-spin mb-2" /><span className="text-sm font-bold text-[#8FA872] mt-2">กำลังดึงราคาหุ้น 60 ตัว... (อาจใช้เวลาสักครู่)</span></div>)}
+            {isLoading && (<div className="absolute inset-0 bg-[#FAF6EE]/80 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center"><Loader2 className="w-8 h-8 text-[#8FA872] animate-spin mb-2" /><span className="text-sm font-bold text-[#8FA872] mt-2">กำลังดึงราคาหุ้น 60 ตัว...</span></div>)}
             <div className="max-h-[600px] overflow-y-auto">
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 bg-[#FAF6EE] z-20 shadow-sm"><tr className="text-[10px] font-bold text-gray-400 uppercase border-b border-[#EBE5D8]"><th className="py-3 px-4">หุ้น (Symbol)</th><th className="py-3 px-2 text-right">ราคา</th><th className="py-3 px-2 text-right">เปลี่ยนแปลง</th><th className="py-3 px-4 text-right">AI SCORE</th></tr></thead>
@@ -211,7 +186,7 @@ export default function InvestneetFullApp() {
                 </tbody>
               </table>
             </div>
-            {filteredStocks.length === 0 && !isLoading && <div className="p-8 text-center text-gray-400 font-bold">ไม่พบหุ้นที่ค้นหา หรือ API ขัดข้อง</div>}
+            {filteredStocks.length === 0 && !isLoading && <div className="p-8 text-center text-gray-400 font-bold">ไม่พบหุ้นที่ค้นหา</div>}
           </div>
         </div>
 
@@ -229,7 +204,7 @@ export default function InvestneetFullApp() {
           <header className="mb-4">
             <p className="text-[10px] font-bold tracking-widest text-[#8FA872] uppercase mb-1">PERSONAL PORTFOLIO</p>
             <h1 className="text-3xl font-black text-[#3E3A35] flex items-center gap-3"><Heart className="w-8 h-8 text-red-500 fill-current" /> My Watchlist</h1>
-            <p className="text-sm text-gray-500 mt-2">หุ้นที่คุณติดตามไว้ทั้งหมด {favorites.length} รายการ (บันทึกในเครื่อง)</p>
+            <p className="text-sm text-gray-500 mt-2">หุ้นที่คุณติดตามไว้ทั้งหมด {favorites.length} รายการ</p>
           </header>
 
           <div className="bg-[#FAF6EE] rounded-xl border border-[#EBE5D8] overflow-hidden relative min-h-[300px]">
@@ -252,7 +227,7 @@ export default function InvestneetFullApp() {
                 </table>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-[300px] text-gray-400"><Heart className="w-12 h-12 mb-3 opacity-20" /><p className="font-bold">ยังไม่มีหุ้นใน Watchlist</p><button onClick={() => setActiveMenu('home')} className="mt-4 px-4 py-2 bg-[#8FA872] text-white rounded-lg text-sm font-bold shadow-sm">ไปหาหุ้นกันเลย</button></div>
+              <div className="flex flex-col items-center justify-center h-[300px] text-gray-400"><Heart className="w-12 h-12 mb-3 opacity-20" /><p className="font-bold">ยังไม่มีหุ้นใน Watchlist</p></div>
             )}
           </div>
         </div>
@@ -268,8 +243,7 @@ export default function InvestneetFullApp() {
         <div className="w-24 h-24 bg-[#EBE5D8] rounded-full flex items-center justify-center border-4 border-white shadow-sm"><User className="w-12 h-12 text-gray-400" /></div>
         <div>
           <h1 className="text-3xl font-black text-[#3E3A35]">Guest Investor</h1>
-          <p className="text-sm text-gray-500 mt-1">Free Plan • สมัครเมื่อ 14 มิ.ย. 2026</p>
-          <div className="flex gap-2 mt-3"><span className="bg-[#8FA872] text-white text-xs font-bold px-3 py-1 rounded-full">API Connected</span></div>
+          <p className="text-sm text-gray-500 mt-1">Free Plan</p>
         </div>
       </header>
 
@@ -277,21 +251,13 @@ export default function InvestneetFullApp() {
         <div className="bg-white rounded-2xl p-6 border border-[#EBE5D8] shadow-sm">
           <div className="flex items-center gap-3 mb-4"><Wallet className="w-6 h-6 text-[#8FA872]" /><h2 className="text-lg font-bold">Paper Trading Balance</h2></div>
           <p className="text-4xl font-black text-[#2B303A]">$100,000.00</p>
-          <p className="text-sm text-gray-500 mt-1">เงินจำลองสำหรับฝึกเทรด</p>
         </div>
         <div className="bg-white rounded-2xl p-6 border border-[#EBE5D8] shadow-sm">
           <div className="flex items-center gap-3 mb-4"><PieChart className="w-6 h-6 text-blue-500" /><h2 className="text-lg font-bold">Portfolio Stats</h2></div>
           <div className="space-y-2">
             <div className="flex justify-between text-sm"><span className="text-gray-500">หุ้นที่ติดตาม (Watchlist)</span><span className="font-bold">{favorites.length} ตัว</span></div>
-            <div className="flex justify-between text-sm"><span className="text-gray-500">ความแม่นยำ AI</span><span className="font-bold text-[#8FA872]">84%</span></div>
           </div>
         </div>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-[#EBE5D8] shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-[#EBE5D8] hover:bg-gray-50 cursor-pointer flex justify-between items-center"><div className="flex items-center gap-3"><Settings className="w-5 h-5 text-gray-400"/><span className="font-bold">ตั้งค่าบัญชีและ API</span></div><ChevronRight className="w-4 h-4 text-gray-300"/></div>
-        <div className="p-4 border-b border-[#EBE5D8] hover:bg-gray-50 cursor-pointer flex justify-between items-center"><div className="flex items-center gap-3"><HelpCircle className="w-5 h-5 text-gray-400"/><span className="font-bold">ช่วยเหลือและศูนย์สนับสนุน</span></div><ChevronRight className="w-4 h-4 text-gray-300"/></div>
-        <div className="p-4 hover:bg-red-50 cursor-pointer flex justify-between items-center text-red-500"><div className="flex items-center gap-3"><LogOut className="w-5 h-5"/><span className="font-bold">ออกจากระบบ</span></div></div>
       </div>
     </div>
   );
@@ -306,9 +272,6 @@ export default function InvestneetFullApp() {
           <button onClick={() => setActiveMenu('home')} className={`transition-colors relative ${activeMenu === 'home' ? 'text-white' : 'text-gray-400 hover:text-[#A7C08A]'}`}><Home className="w-6 h-6" />{activeMenu === 'home' && <span className="absolute -left-5 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#8FA872] rounded-r-md"></span>}</button>
           <button onClick={() => setActiveMenu('watchlist')} className={`transition-colors relative ${activeMenu === 'watchlist' ? 'text-white' : 'text-gray-400 hover:text-[#A7C08A]'}`}><Heart className="w-6 h-6" /><span className="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{favorites.length}</span>{activeMenu === 'watchlist' && <span className="absolute -left-5 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#8FA872] rounded-r-md"></span>}</button>
           <button onClick={() => setActiveMenu('profile')} className={`transition-colors relative ${activeMenu === 'profile' ? 'text-white' : 'text-gray-400 hover:text-[#A7C08A]'}`}><User className="w-6 h-6" />{activeMenu === 'profile' && <span className="absolute -left-5 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#8FA872] rounded-r-md"></span>}</button>
-          <div className="w-8 h-px bg-gray-600 my-2"></div>
-          <button className="text-gray-500 hover:text-white transition-colors"><Search className="w-5 h-5" /></button>
-          <button className="text-gray-500 hover:text-white transition-colors"><MessageSquare className="w-5 h-5" /></button>
         </div>
       </nav>
 
